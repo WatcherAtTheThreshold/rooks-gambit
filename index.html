@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rook's Gambit - Chess Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;700&family=Source+Sans+Pro:wght@300;400&family=Bangers&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/chess.css">
+</head>
+<body>
+    <div class="background"></div>
+    <div class="mist-overlay"></div>
+    <div class="particles" id="particles"></div>
+    
+    <div class="game-overlay" id="gameOverlay">
+        <div class="overlay-text" id="overlayText"></div>
+    </div>
+
+    <main class="game-wrapper">
+        <div class="game-container">
+            <div class="game-header">
+                <h2>♚ Rook's Gambit ♔</h2>
+                
+                <div class="game-settings-container">
+                    <div class="difficulty-controls">
+                        <h4>⚔️ Challenge Level</h4>
+                        <div class="difficulty-selector">
+                            <button class="difficulty-btn active" data-difficulty="novice" id="noviceDifficulty">
+                                🛡️ Novice
+                            </button>
+                            <button class="difficulty-btn" data-difficulty="knight" id="knightDifficulty">
+                                ⚔️ Knight
+                            </button>
+                            <button class="difficulty-btn" data-difficulty="grandmaster" id="grandmasterDifficulty">
+                                👑 Grandmaster
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="music-controls">
+                        <h4>🎵 Battle Music</h4>
+                        <audio id="chessMusic" loop preload="auto">
+                            <source src="assets/sounds/mysticChess.mp3" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                        <button class="music-btn" id="musicToggle">
+                            🎵 Play Echoes of the Board
+                        </button>
+                        <div class="volume-control">
+                            <span>🔊</span>
+                            <input type="range" id="volumeSlider" min="0" max="100" value="30">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="game-status" id="gameStatus">White to move</div>
+            </div>
+            
+            <!-- UPDATED: Simplified board wrapper without external coordinates -->
+            <div class="chess-board-wrapper">
+                <div class="chess-board-container">
+                    <div class="chess-board-mist"></div>
+                    <div class="chess-board" id="chessBoard"></div>
+                    
+                    <!-- NEW: Internal coordinate labels -->
+                    <div class="board-coordinates" id="boardCoordinates">
+                        <!-- Rank labels (8, 7, 6, 5, 4, 3, 2, 1) -->
+                        <div class="rank-label-inside">8</div>
+                        <div class="rank-label-inside">7</div>
+                        <div class="rank-label-inside">6</div>
+                        <div class="rank-label-inside">5</div>
+                        <div class="rank-label-inside">4</div>
+                        <div class="rank-label-inside">3</div>
+                        <div class="rank-label-inside">2</div>
+                        <div class="rank-label-inside">1</div>
+                        
+                        <!-- File labels (a, b, c, d, e, f, g, h) -->
+                        <div class="file-label-inside">a</div>
+                        <div class="file-label-inside">b</div>
+                        <div class="file-label-inside">c</div>
+                        <div class="file-label-inside">d</div>
+                        <div class="file-label-inside">e</div>
+                        <div class="file-label-inside">f</div>
+                        <div class="file-label-inside">g</div>
+                        <div class="file-label-inside">h</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" id="newGameBtn">New Game</button>
+                <button class="btn" id="undoMoveBtn">Undo Move</button>
+                <button class="btn" id="showLastMoveBtn">Show Last Move</button>
+            </div>
+            
+            <div class="move-history" id="moveHistory">
+                <p><em>Move history will appear here...</em></p>
+            </div>
+            
+            <div class="game-instructions">
+                <h3>How to Play</h3>
+                <div class="instruction-grid">
+                    <div class="instruction">
+                        <span class="instruction-icon">👆</span>
+                        <span class="instruction-text">Click your piece to select it</span>
+                    </div>
+                    <div class="instruction">
+                        <span class="instruction-icon">✨</span>
+                        <span class="instruction-text">Valid moves glow green</span>
+                    </div>
+                    <div class="instruction">
+                        <span class="instruction-icon">🎯</span>
+                        <span class="instruction-text">Click destination to move</span>
+                    </div>
+                    <div class="instruction">
+                        <span class="instruction-icon">🤖</span>
+                        <span class="instruction-text">AI responds automatically</span>
+                    </div>
+                    <div class="instruction">
+                        <span class="instruction-icon">🔍</span>
+                        <span class="instruction-text">Use "Show Last Move" if you missed the AI's move</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/game-engine.js"></script>
+    <script src="js/ui-controller.js"></script>
+    <script src="js/ai-player.js"></script>
+    <script src="js/particle-effects.js"></script>
+    <script src="js/audio-manager.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
