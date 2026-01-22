@@ -12,7 +12,8 @@ let audioManager;
 let gameState = {
     initialized: false,
     playerTurn: true,
-    difficulty: 'novice' // Default difficulty level
+    difficulty: 'novice', // Default difficulty level
+    gameMode: 'standard' // 'standard' or 'chess960'
 };
 
 // Status message timeout tracker
@@ -42,7 +43,10 @@ function initializeGame() {
         
         // Set up difficulty button listeners
         setupDifficultyControls();
-        
+
+        // Set up game mode controls (Standard/Chess960)
+        setupGameModeControls();
+
         // Add difficulty indicator to UI
         addDifficultyIndicator();
         
@@ -252,15 +256,121 @@ function getCurrentDifficulty() {
 function refreshDifficulty() {
     const currentDifficulty = gameState.difficulty;
     console.log('Refreshing difficulty systems with:', currentDifficulty);
-    
+
     // Re-apply to AI
     if (aiPlayer && aiPlayer.setDifficulty) {
         aiPlayer.setDifficulty(currentDifficulty);
     }
-    
+
     // Re-apply to UI
     updateDifficultyDisplay(currentDifficulty);
     updateDifficultyIndicator(currentDifficulty);
+}
+
+// ==================== GAME MODE CONTROLS (Chess960) ====================
+
+// Set up game mode button controls
+function setupGameModeControls() {
+    const modeButtons = document.querySelectorAll('.mode-btn');
+
+    if (modeButtons.length === 0) {
+        console.warn('No game mode buttons found');
+        return;
+    }
+
+    // Add click listeners to all mode buttons
+    modeButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const mode = e.target.dataset.mode;
+            if (mode) {
+                changeGameMode(mode);
+            }
+        });
+    });
+
+    // Set initial mode display
+    updateGameModeDisplay(gameState.gameMode);
+
+    console.log('Game mode controls initialized with default:', gameState.gameMode);
+}
+
+// Change game mode and update UI
+function changeGameMode(newMode) {
+    const validModes = ['standard', 'chess960'];
+
+    if (!validModes.includes(newMode)) {
+        console.error('Invalid game mode:', newMode);
+        return;
+    }
+
+    if (gameState.gameMode === newMode) {
+        console.log('Game mode already set to:', newMode);
+        return;
+    }
+
+    gameState.gameMode = newMode;
+
+    // Update game engine mode
+    if (gameEngine) {
+        gameEngine.setChess960Mode(newMode === 'chess960');
+    }
+
+    // Update visual displays
+    updateGameModeDisplay(newMode);
+
+    // Show feedback message
+    showGameModeChangeMessage(newMode);
+
+    console.log(`Game mode changed to ${newMode}`);
+}
+
+// Update game mode button visual states
+function updateGameModeDisplay(activeMode) {
+    const modeButtons = document.querySelectorAll('.mode-btn');
+
+    modeButtons.forEach(button => {
+        const buttonMode = button.dataset.mode;
+        if (buttonMode === activeMode) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+// Show a brief message when game mode changes
+function showGameModeChangeMessage(newMode) {
+    const statusElement = document.getElementById('gameStatus');
+    if (!statusElement) return;
+
+    // Clear any existing timeout
+    if (statusMessageTimeout) {
+        clearTimeout(statusMessageTimeout);
+        statusMessageTimeout = null;
+    }
+
+    const modeInfo = {
+        'standard': { name: 'Standard Chess', color: 'rgba(76, 175, 80, 1)' },
+        'chess960': { name: 'Chess960', color: 'rgba(255, 152, 0, 1)' }
+    };
+
+    const info = modeInfo[newMode];
+    statusElement.textContent = `Switched to ${info.name} - Start a new game!`;
+    statusElement.style.color = info.color;
+
+    // Restore status after 3 seconds
+    statusMessageTimeout = setTimeout(() => {
+        if (uiController && uiController.updateGameStatus) {
+            uiController.updateGameStatus();
+        }
+        statusElement.style.color = '';
+        statusMessageTimeout = null;
+    }, 3000);
+}
+
+// Get current game mode
+function getCurrentGameMode() {
+    return gameState.gameMode;
 }
 
 // Set up board square click interactions
@@ -391,37 +501,71 @@ function newGame() {
     try {
         // Clear any existing particle effects
         particleEffects.clearAllParticles();
-        
+
         // Clear any pending status messages
         if (statusMessageTimeout) {
             clearTimeout(statusMessageTimeout);
             statusMessageTimeout = null;
         }
-        
+
+        // Apply game mode before reset (Chess960 or Standard)
+        if (gameEngine) {
+            gameEngine.setChess960Mode(gameState.gameMode === 'chess960');
+        }
+
         // Reset all modules
         gameEngine.reset();
         uiController.reset(); // This now includes clearing AI highlights
         aiPlayer.reset();
-        
+
         // IMPORTANT: Re-apply difficulty after reset
         const currentDifficulty = gameState.difficulty;
         if (aiPlayer && aiPlayer.setDifficulty) {
             aiPlayer.setDifficulty(currentDifficulty);
             console.log('Difficulty re-applied after new game:', currentDifficulty);
         }
-        
-        // Reset game state (but preserve difficulty)
+
+        // Reset game state (but preserve difficulty and mode)
         gameState.playerTurn = true;
-        
+
         // Refresh difficulty display
         refreshDifficulty();
-        
-        console.log('New game started with difficulty:', gameState.difficulty);
-        
+
+        // Show Chess960 position info if applicable
+        if (gameState.gameMode === 'chess960' && gameEngine.positionId !== null) {
+            showChess960PositionInfo(gameEngine.positionId);
+        }
+
+        console.log('New game started with mode:', gameState.gameMode, 'difficulty:', gameState.difficulty);
+
     } catch (error) {
         console.error('Error starting new game:', error);
         handleGameError(error);
     }
+}
+
+// Show Chess960 position ID briefly
+function showChess960PositionInfo(positionId) {
+    const statusElement = document.getElementById('gameStatus');
+    if (!statusElement) return;
+
+    // Clear any existing timeout
+    if (statusMessageTimeout) {
+        clearTimeout(statusMessageTimeout);
+        statusMessageTimeout = null;
+    }
+
+    statusElement.textContent = `Chess960 Position #${positionId} - White to move`;
+    statusElement.style.color = 'rgba(255, 152, 0, 1)';
+
+    // Restore to normal status after 3 seconds
+    statusMessageTimeout = setTimeout(() => {
+        if (uiController && uiController.updateGameStatus) {
+            uiController.updateGameStatus();
+        }
+        statusElement.style.color = '';
+        statusMessageTimeout = null;
+    }, 3000);
 }
 
 // ENHANCED: Post-game undo functionality - allow unlimited undos until new game
@@ -542,6 +686,10 @@ function handleGameError(error) {
 window.getCurrentDifficulty = getCurrentDifficulty;
 window.changeDifficulty = changeDifficulty;
 window.refreshDifficulty = refreshDifficulty; // For debugging
+
+// Export game mode functions
+window.getCurrentGameMode = getCurrentGameMode;
+window.changeGameMode = changeGameMode;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
