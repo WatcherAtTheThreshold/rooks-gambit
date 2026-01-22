@@ -17,7 +17,15 @@ class ChessGame {
         this.halfMoveClock = 0;
         this.fullMoveNumber = 1;
         this.gameStarted = false;
-        
+
+        // Chess960 support
+        this.isChess960 = false;
+        this.initialPositions = {
+            white: { king: 4, rookKingside: 7, rookQueenside: 0 },
+            black: { king: 4, rookKingside: 7, rookQueenside: 0 }
+        };
+        this.positionId = null;
+
         this.pieces = {
             white: {
                 king: '♔', queen: '♕', rook: '♖', 
@@ -38,20 +46,123 @@ class ChessGame {
     
     initializeBoard() {
         const board = Array(8).fill(null).map(() => Array(8).fill(null));
-        
-        // Place pieces in starting positions
-        const backRow = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
-        
+
+        // Get back row based on game mode
+        let backRow;
+        if (this.isChess960) {
+            backRow = this.generateChess960Position(this.positionId);
+        } else {
+            backRow = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
+            // Ensure standard positions for castling
+            this.initialPositions = {
+                white: { king: 4, rookKingside: 7, rookQueenside: 0 },
+                black: { king: 4, rookKingside: 7, rookQueenside: 0 }
+            };
+        }
+
         for (let col = 0; col < 8; col++) {
             board[0][col] = { type: backRow[col], color: 'black' };
             board[1][col] = { type: 'pawn', color: 'black' };
             board[6][col] = { type: 'pawn', color: 'white' };
             board[7][col] = { type: backRow[col], color: 'white' };
         }
-        
+
         return board;
     }
-    
+
+    // Generate a Chess960 starting position using the Scharnagl algorithm
+    // positionId: 0-959, or null for random
+    generateChess960Position(positionId = null) {
+        if (positionId === null) {
+            positionId = Math.floor(Math.random() * 960);
+        }
+        this.positionId = positionId;
+
+        const backRow = new Array(8).fill(null);
+
+        // Step 1: Light-square bishop (columns 1, 3, 5, 7)
+        const lightSquares = [1, 3, 5, 7];
+        const lightBishopIndex = positionId % 4;
+        backRow[lightSquares[lightBishopIndex]] = 'bishop';
+
+        // Step 2: Dark-square bishop (columns 0, 2, 4, 6)
+        const darkSquares = [0, 2, 4, 6];
+        const darkBishopIndex = Math.floor(positionId / 4) % 4;
+        backRow[darkSquares[darkBishopIndex]] = 'bishop';
+
+        // Step 3: Queen placement among remaining 6 squares
+        const queenIndex = Math.floor(positionId / 16) % 6;
+        let emptyCount = 0;
+        for (let i = 0; i < 8; i++) {
+            if (backRow[i] === null) {
+                if (emptyCount === queenIndex) {
+                    backRow[i] = 'queen';
+                    break;
+                }
+                emptyCount++;
+            }
+        }
+
+        // Step 4: Knight placements (lookup table for 5 choose 2 = 10 combinations)
+        const knightTable = [
+            [0, 1], [0, 2], [0, 3], [0, 4],
+            [1, 2], [1, 3], [1, 4],
+            [2, 3], [2, 4],
+            [3, 4]
+        ];
+        const knightIndex = Math.floor(positionId / 96);
+        const knightPositions = knightTable[knightIndex];
+
+        let emptySquares = [];
+        for (let i = 0; i < 8; i++) {
+            if (backRow[i] === null) {
+                emptySquares.push(i);
+            }
+        }
+
+        backRow[emptySquares[knightPositions[0]]] = 'knight';
+        backRow[emptySquares[knightPositions[1]]] = 'knight';
+
+        // Step 5: Place rooks and king in remaining squares (RKR order)
+        emptySquares = [];
+        for (let i = 0; i < 8; i++) {
+            if (backRow[i] === null) {
+                emptySquares.push(i);
+            }
+        }
+        // Remaining 3 squares: first=rook, second=king, third=rook
+        backRow[emptySquares[0]] = 'rook';
+        backRow[emptySquares[1]] = 'king';
+        backRow[emptySquares[2]] = 'rook';
+
+        // Store initial positions for castling
+        const kingCol = emptySquares[1];
+        const rookQueensideCol = emptySquares[0];
+        const rookKingsideCol = emptySquares[2];
+
+        this.initialPositions = {
+            white: { king: kingCol, rookKingside: rookKingsideCol, rookQueenside: rookQueensideCol },
+            black: { king: kingCol, rookKingside: rookKingsideCol, rookQueenside: rookQueensideCol }
+        };
+
+        return backRow;
+    }
+
+    // Set Chess960 mode
+    setChess960Mode(enabled, positionId = null) {
+        this.isChess960 = enabled;
+        if (enabled) {
+            this.positionId = positionId;
+        } else {
+            this.positionId = null;
+            // Reset to standard positions
+            this.initialPositions = {
+                white: { king: 4, rookKingside: 7, rookQueenside: 0 },
+                black: { king: 4, rookKingside: 7, rookQueenside: 0 }
+            };
+        }
+    }
+
     isValidMove(fromRow, fromCol, toRow, toCol) {
         const piece = this.board[fromRow][fromCol];
         if (!piece || piece.color !== this.currentPlayer) return false;
@@ -73,13 +184,19 @@ class ChessGame {
         this.board[toRow][toCol] = piece;
         this.board[fromRow][fromCol] = null;
         
-        // Handle castling rook movement for the check test
-        if (piece.type === 'king' && Math.abs(toCol - fromCol) === 2) {
-            const rookFromCol = toCol > fromCol ? 7 : 0;
-            const rookToCol = toCol > fromCol ? 5 : 3;
-            const rook = this.board[fromRow][rookFromCol];
-            this.board[fromRow][rookToCol] = rook;
-            this.board[fromRow][rookFromCol] = null;
+        // Handle castling rook movement for the check test (Chess960 compatible)
+        if (piece.type === 'king') {
+            const positions = this.initialPositions[piece.color];
+            const isKingsideCastle = toCol === 6 && fromCol === positions.king;
+            const isQueensideCastle = toCol === 2 && fromCol === positions.king;
+
+            if (isKingsideCastle || isQueensideCastle) {
+                const rookFromCol = isKingsideCastle ? positions.rookKingside : positions.rookQueenside;
+                const rookToCol = isKingsideCastle ? 5 : 3;
+                const rook = this.board[fromRow][rookFromCol];
+                this.board[fromRow][rookToCol] = rook;
+                this.board[fromRow][rookFromCol] = null;
+            }
         }
         
         const wouldBeInCheck = this.isInCheck(piece.color);
@@ -112,12 +229,19 @@ class ChessGame {
             case 'king':
                 // Normal king move (one square in any direction)
                 if (absRowDiff <= 1 && absColDiff <= 1) return true;
-                
-                // Castling (king moves 2 squares horizontally)
-                if (absRowDiff === 0 && absColDiff === 2) {
-                    return this.canCastle(piece.color, toCol > fromCol);
+
+                // Castling detection for Chess960 compatibility
+                // King moves to g-file (col 6) for kingside, c-file (col 2) for queenside
+                const positions = this.initialPositions[piece.color];
+                if (absRowDiff === 0 && fromCol === positions.king) {
+                    if (toCol === 6) { // Kingside castling destination
+                        return this.canCastle(piece.color, true);
+                    }
+                    if (toCol === 2) { // Queenside castling destination
+                        return this.canCastle(piece.color, false);
+                    }
                 }
-                
+
                 return false;
             default:
                 return false;
@@ -126,50 +250,76 @@ class ChessGame {
     
     canCastle(color, kingside) {
         const row = color === 'white' ? 7 : 0;
-        const kingCol = 4;
-        const rookCol = kingside ? 7 : 0;
-        
+        const positions = this.initialPositions[color];
+        const kingCol = positions.king;
+        const rookCol = kingside ? positions.rookKingside : positions.rookQueenside;
+
         // Check castling rights
         if (!this.castlingRights[color][kingside ? 'kingside' : 'queenside']) {
             return false;
         }
-        
+
         // Check if king is in check
         if (this.isInCheck(color)) {
             return false;
         }
-        
-        // Check if path is clear
-        const startCol = Math.min(kingCol, rookCol);
-        const endCol = Math.max(kingCol, rookCol);
-        
-        for (let col = startCol + 1; col < endCol; col++) {
+
+        // King destination: g-file (col 6) for kingside, c-file (col 2) for queenside
+        const kingDestCol = kingside ? 6 : 2;
+        // Rook destination: f-file (col 5) for kingside, d-file (col 3) for queenside
+        const rookDestCol = kingside ? 5 : 3;
+
+        // Verify king and rook are still in their initial positions
+        const king = this.board[row][kingCol];
+        const rook = this.board[row][rookCol];
+
+        if (!king || king.type !== 'king' || king.color !== color) {
+            return false;
+        }
+        if (!rook || rook.type !== 'rook' || rook.color !== color) {
+            return false;
+        }
+
+        // Check path clearance for Chess960
+        // All squares that king passes through, rook passes through, or are destinations must be clear
+        // (except for the king and rook themselves)
+        const minCol = Math.min(kingCol, kingDestCol, rookCol, rookDestCol);
+        const maxCol = Math.max(kingCol, kingDestCol, rookCol, rookDestCol);
+
+        for (let col = minCol; col <= maxCol; col++) {
+            // Skip the king and rook's current positions
+            if (col === kingCol || col === rookCol) continue;
+
             if (this.board[row][col] !== null) {
                 return false;
             }
         }
-        
-        // Check if king passes through or ends up in check
-        const kingDestCol = kingside ? 6 : 2;
-        const passThroughCol = kingside ? 5 : 3;
-        
-        // Test if king would be in check on the square it passes through
+
+        // Check that king does not pass through or end in check
+        // Test each square the king passes through (including destination)
         const tempBoard = this.copyBoard();
-        this.board[row][passThroughCol] = this.board[row][kingCol];
-        this.board[row][kingCol] = null;
-        
-        const passesThroughCheck = this.isInCheck(color);
-        
-        // Test if king would be in check on the destination square
-        this.board[row][kingDestCol] = this.board[row][passThroughCol];
-        this.board[row][passThroughCol] = null;
-        
-        const endsInCheck = this.isInCheck(color);
-        
-        // Restore board
+        const step = kingDestCol > kingCol ? 1 : -1;
+
+        for (let col = kingCol + step; ; col += step) {
+            // Temporarily move king to this square
+            this.board[row][col] = king;
+            this.board[row][kingCol] = null;
+
+            if (this.isInCheck(color)) {
+                this.board = tempBoard;
+                return false;
+            }
+
+            // Restore for next iteration
+            this.board = tempBoard.map(r => r.map(p => p ? {...p} : null));
+
+            if (col === kingDestCol) break;
+        }
+
+        // Restore original board
         this.board = tempBoard;
-        
-        return !passesThroughCheck && !endsInCheck;
+
+        return true;
     }
     
     isValidPawnMove(piece, fromRow, fromCol, toRow, toCol) {
@@ -222,15 +372,22 @@ class ChessGame {
             this.board[fromRow][toCol] = null;
         }
         
-        // Handle castling
-        if (piece.type === 'king' && Math.abs(toCol - fromCol) === 2) {
-            const rookFromCol = toCol > fromCol ? 7 : 0;
-            const rookToCol = toCol > fromCol ? 5 : 3;
-            const rook = this.board[fromRow][rookFromCol];
-            
-            // Move the rook
-            this.board[fromRow][rookToCol] = rook;
-            this.board[fromRow][rookFromCol] = null;
+        // Handle castling (Chess960 compatible)
+        if (piece.type === 'king') {
+            const positions = this.initialPositions[piece.color];
+            const isKingsideCastle = toCol === 6 && fromCol === positions.king && this.castlingRights[piece.color].kingside;
+            const isQueensideCastle = toCol === 2 && fromCol === positions.king && this.castlingRights[piece.color].queenside;
+
+            if (isKingsideCastle || isQueensideCastle) {
+                const rookFromCol = isKingsideCastle ? positions.rookKingside : positions.rookQueenside;
+                const rookToCol = isKingsideCastle ? 5 : 3;
+                const rook = this.board[fromRow][rookFromCol];
+
+                // Clear the rook's original position first (in case king lands there in Chess960)
+                this.board[fromRow][rookFromCol] = null;
+                // Move the rook to its destination
+                this.board[fromRow][rookToCol] = rook;
+            }
         }
         
         // Move piece
@@ -299,27 +456,35 @@ class ChessGame {
             this.castlingRights[piece.color].kingside = false;
             this.castlingRights[piece.color].queenside = false;
         }
-        
+
         // If rook moves from starting position, lose castling right for that side
         if (piece.type === 'rook') {
-            if (piece.color === 'white' && fromRow === 7) {
-                if (fromCol === 0) this.castlingRights.white.queenside = false;
-                if (fromCol === 7) this.castlingRights.white.kingside = false;
-            } else if (piece.color === 'black' && fromRow === 0) {
-                if (fromCol === 0) this.castlingRights.black.queenside = false;
-                if (fromCol === 7) this.castlingRights.black.kingside = false;
+            const positions = this.initialPositions[piece.color];
+            const homeRow = piece.color === 'white' ? 7 : 0;
+
+            if (fromRow === homeRow) {
+                if (fromCol === positions.rookQueenside) {
+                    this.castlingRights[piece.color].queenside = false;
+                }
+                if (fromCol === positions.rookKingside) {
+                    this.castlingRights[piece.color].kingside = false;
+                }
             }
         }
-        
+
         // If rook is captured, lose castling right for that side
         const capturedPiece = this.board[toRow][toCol];
         if (capturedPiece && capturedPiece.type === 'rook') {
-            if (capturedPiece.color === 'white' && toRow === 7) {
-                if (toCol === 0) this.castlingRights.white.queenside = false;
-                if (toCol === 7) this.castlingRights.white.kingside = false;
-            } else if (capturedPiece.color === 'black' && toRow === 0) {
-                if (toCol === 0) this.castlingRights.black.queenside = false;
-                if (toCol === 7) this.castlingRights.black.kingside = false;
+            const positions = this.initialPositions[capturedPiece.color];
+            const homeRow = capturedPiece.color === 'white' ? 7 : 0;
+
+            if (toRow === homeRow) {
+                if (toCol === positions.rookQueenside) {
+                    this.castlingRights[capturedPiece.color].queenside = false;
+                }
+                if (toCol === positions.rookKingside) {
+                    this.castlingRights[capturedPiece.color].kingside = false;
+                }
             }
         }
     }
@@ -423,11 +588,12 @@ class ChessGame {
             notation += ' and promotes to Queen';
         }
         
-        // Handle castling
-        if (piece.type === 'king' && Math.abs(toCol - fromCol) === 2) {
-            if (toCol > fromCol) {
+        // Handle castling (Chess960 compatible - detect by destination)
+        if (piece.type === 'king') {
+            const positions = this.initialPositions[piece.color];
+            if (fromCol === positions.king && toCol === 6) {
                 notation = `${colorName} castles kingside`;
-            } else {
+            } else if (fromCol === positions.king && toCol === 2) {
                 notation = `${colorName} castles queenside`;
             }
         }
@@ -461,6 +627,11 @@ class ChessGame {
     
     // Reset game to initial state
     reset() {
+        // For Chess960, generate a new random position on reset
+        if (this.isChess960) {
+            this.positionId = null; // Will generate new random position in initializeBoard
+        }
+
         this.board = this.initializeBoard();
         this.currentPlayer = 'white';
         this.selectedSquare = null;
