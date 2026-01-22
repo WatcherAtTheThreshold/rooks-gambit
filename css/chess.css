@@ -1070,10 +1070,92 @@ body {
 .difficulty-btn[data-difficulty="grandmaster"].active {
     background: rgba(233, 30, 99, 0.8) !important;
     border: 2px solid rgba(233, 30, 99, 1) !important;
-    box-shadow: 
+    box-shadow:
         0 0 25px rgba(233, 30, 99, 0.8),
         0 0 50px rgba(233, 30, 99, 0.6),
         inset 0 0 20px rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Game Mode Controls (Chess960) */
+.mode-controls {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mode-controls h4 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 0.75rem;
+    text-align: center;
+    text-shadow: 0 0 8px rgba(138, 43, 226, 0.4);
+}
+
+.mode-selector {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.mode-btn {
+    flex: 1;
+    background: rgba(138, 43, 226, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(138, 43, 226, 0.4);
+    padding: 0.6rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    font-family: 'Source Sans Pro', sans-serif;
+    font-weight: 500;
+    text-align: center;
+}
+
+.mode-btn:hover {
+    background: rgba(138, 43, 226, 0.3);
+    border-color: rgba(138, 43, 226, 0.6);
+    transform: translateY(-1px);
+}
+
+.mode-btn.active {
+    background: rgba(138, 43, 226, 0.8) !important;
+    border: 2px solid rgba(138, 43, 226, 1) !important;
+    box-shadow: 0 0 25px rgba(138, 43, 226, 0.8);
+    color: #fff !important;
+    font-weight: 700 !important;
+}
+
+.mode-btn[data-mode="standard"] {
+    border-color: rgba(76, 175, 80, 0.4);
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.mode-btn[data-mode="standard"].active {
+    background: rgba(76, 175, 80, 0.8) !important;
+    border-color: rgba(76, 175, 80, 1) !important;
+    box-shadow: 0 0 25px rgba(76, 175, 80, 0.8);
+}
+
+.mode-btn[data-mode="chess960"] {
+    border-color: rgba(255, 152, 0, 0.4);
+    background: rgba(255, 152, 0, 0.2);
+}
+
+.mode-btn[data-mode="chess960"].active {
+    background: rgba(255, 152, 0, 0.8) !important;
+    border-color: rgba(255, 152, 0, 1) !important;
+    box-shadow: 0 0 25px rgba(255, 152, 0, 0.8);
 }
 
 .game-status-container {
@@ -1193,19 +1275,22 @@ body {
     }
     
     .difficulty-controls,
-    .music-controls {
+    .music-controls,
+    .mode-controls {
         max-width: 100%;
         min-width: auto;
         width: 100%;
     }
-    
-    .difficulty-selector {
+
+    .difficulty-selector,
+    .mode-selector {
         flex-direction: row;
         justify-content: space-between;
         gap: 0.3rem;
     }
-    
-    .difficulty-btn {
+
+    .difficulty-btn,
+    .mode-btn {
         flex: 1;
         padding: 0.5rem 0.3rem;
         font-size: 0.8rem;
@@ -1295,7 +1380,8 @@ body {
     }
     
     .difficulty-controls h4,
-    .music-controls h4 {
+    .music-controls h4,
+    .mode-controls h4 {
         font-size: 1rem;
         margin-bottom: 0.5rem;
     }
